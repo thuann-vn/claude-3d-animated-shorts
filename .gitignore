@@ -7,3 +7,4 @@ engine/film/*.otf
 *.mp3
 *.wav
 .DS_Store
+engine/assets/props/polyhaven/

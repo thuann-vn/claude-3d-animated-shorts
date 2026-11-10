@@ -50,6 +50,17 @@ Write each shot as `shot(t0, (t) => { …pose people…; look(camPos, target, fo
 - People stand at standing desks: chairs are hidden in skits.
 - Long pieces such as a tie lean with the belly.
 
+### Director's shot plan (used in the skit)
+Never keep one framing for long. Every shot gets a size, an angle and a motivated move:
+1. **Establish:** crane down from a high corner, 24–28 mm. Show where everyone sits.
+2. **Hero:** low angle, 38 mm, slow push-in, shallow DOF.
+3. **OTS insert:** shoulder in the foreground, the screen sharp, the cursor creeping.
+4. **ECU + snap-zoom** on the action (mitten clicks the mouse).
+5. **Whip pan** between reactions: hold, a 0.28 s whip with a slight roll, hold.
+6. **Dolly-zoom** (vertigo) with a dutch tilt on the "oh no". The camera pulls back while the fov narrows so the face stays the same size.
+
+Set DOF per shot with `post.bokeh.uniforms.focus/aperture`. Check stills at the start, middle and end of each move.
+
 ## 5. Voice, captions, render
 ```bash
 cd <work>; node tools/tts.mjs                # ElevenLabs: voice_raw.mp3 + timing_raw.json (ELEVENLABS_API_KEY)

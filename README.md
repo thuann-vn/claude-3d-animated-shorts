@@ -45,7 +45,7 @@ Then in Claude Code say: *"Use the 3D animated shorts skill and make a 40 s shor
 ## Credits
 - Workflow and audio tools: [mromidev/claude-animated-shorts](https://github.com/mromidev/claude-animated-shorts) (MIT)
 - Style reference: the RicksClips YouTube channel (style only, not affiliated)
-- Furniture: [Kenney](https://kenney.nl) Furniture Kit and [KayKit](https://kaylousberg.itch.io/furniture-bits) Furniture Bits (CC0)
+- Furniture: [Poly Haven](https://polyhaven.com) scans (CC0, fetched by the script), [Kenney](https://kenney.nl) Furniture Kit and [KayKit](https://kaylousberg.itch.io/furniture-bits) Furniture Bits (CC0)
 - Rig: Xbot from the three.js examples (Mixamo). Horse from the three.js examples. Both are downloaded by the fetch script, not included here.
 
 ## License

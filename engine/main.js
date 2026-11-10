@@ -626,21 +626,26 @@ if (Q.has('viewer')) { if (Q.has('skit')) window.ready = false;   // the skit wa
     const hull = (w) => { const m = new THREE.MeshBasicMaterial({ color: '#2a1612', side: THREE.BackSide }); m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `transformed += normalize(normal) * ${w.toFixed(4)};\n#include <project_vertex>`); }; m.customProgramCacheKey = () => 'fh' + w; return m; };
     const load = async (src) => (CACHE[src] ||= GL.loadAsync(src));
     // one scale per kit so pieces stay in proportion: Kenney desk → 0.66 m, KayKit table_medium → 0.62 m (people are ~1.45 m)
-    const kScale = {}; const kitScale = async (kit) => { if (kScale[kit]) return kScale[kit]; const ref = kit === 'kenney' ? 'kenney/desk.glb' : 'kaykit/table_medium.gltf'; const g = await load('./assets/props/' + ref); const b = new THREE.Box3().setFromObject(g.scene); return (kScale[kit] = (kit === 'kenney' ? 0.66 : 0.62) / (b.max.y - b.min.y)); };
-    const put = async (kit, name, x, z, ry = 0, o = {}) => { const g = await load(`./assets/props/${kit}/${name}.${kit === 'kenney' ? 'glb' : 'gltf'}`); const k = (await kitScale(kit)) * (o.k || 1);
-      const obj = g.scene.clone(true); const ms = []; obj.traverse(m => { if (m.isMesh) ms.push(m); }); ms.forEach(m => { const src = m.material; m.material = new THREE.MeshStandardMaterial({ color: src.color ? src.color.clone() : new THREE.Color('#ffffff'), map: src.map || null, roughness: Math.max(0.45, src.roughness ?? 0.7), metalness: Math.min(0.2, src.metalness ?? 0) }); m.castShadow = true; m.receiveShadow = true;
+    const kScale = {}; const kitScale = async (kit) => { if (kScale[kit]) return kScale[kit]; const ref = kit === 'kenney' ? 'kenney/desk.glb' : kit === 'polyhaven' ? 'polyhaven/metal_office_desk/metal_office_desk.gltf' : 'kaykit/table_medium.gltf'; const g = await load('./assets/props/' + ref); const b = new THREE.Box3().setFromObject(g.scene); return (kScale[kit] = (kit === 'kaykit' ? 0.62 : 0.66) / (b.max.y - b.min.y)); };
+    const put = async (kit, name, x, z, ry = 0, o = {}) => { const g = await load(kit === 'polyhaven' ? `./assets/props/polyhaven/${name}/${name}.gltf` : `./assets/props/${kit}/${name}.${kit === 'kenney' ? 'glb' : 'gltf'}`); const k = (await kitScale(kit)) * (o.k || 1);
+      const obj = g.scene.clone(true); const ms = []; obj.traverse(m => { if (m.isMesh) ms.push(m); }); ms.forEach(m => { const src = m.material; if (kit === 'polyhaven') { m.castShadow = m.receiveShadow = true; if (src.map) src.map.anisotropy = 8; return; }   // Poly Haven: keep the scanned PBR materials
+        m.material = new THREE.MeshStandardMaterial({ color: src.color ? src.color.clone() : new THREE.Color('#ffffff'), map: src.map || null, roughness: Math.max(0.45, src.roughness ?? 0.7), metalness: Math.min(0.2, src.metalness ?? 0) }); m.castShadow = true; m.receiveShadow = true;
         if (!o.noInk && Q.get('propink') === '1') { const h = new THREE.Mesh(m.geometry, hull(0.012 / k)); m.add(h); } });   // props: no ink line, real-looking like the RicksClips worlds
-      obj.name = name; obj.scale.setScalar(k); obj.rotation.y = ry; obj.position.set(x, (o.y ?? FY), z); O.add(obj); return obj; };
+      obj.name = name; obj.scale.setScalar(k); obj.rotation.y = ry; obj.position.set(x, (o.y ?? FY), z); O.add(obj);
+      if (kit === 'polyhaven') { obj.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(obj), c2 = bb.getCenter(V(0, 0, 0)); obj.position.x += x - c2.x; obj.position.z += z - c2.z; obj.position.y += (o.y ?? FY) - bb.min.y; }   // footprint centred on (x, z), sitting on the floor/desk
+      return obj; };
     const SET = Q.get('set') || 'office', ZD = Z - 2.9;
-    if (SET === 'office') {
-      for (const [i, x] of [-6.2, -2.1, 2.1, 6.2].entries()) { await put('kenney', i === 3 ? 'deskCorner' : 'desk', x, ZD, 0); await put('kenney', i === 1 ? 'laptop' : 'computerScreen', x, ZD, 0, { y: FY + 0.66 });
+    if (SET === 'office') {   // Poly Haven CC0 scans (desks, chairs, lamps, plants, shelves) + Kenney monitors
+      for (const [i, x] of [-6.2, -2.1, 2.1, 6.2].entries()) { await put('polyhaven', 'metal_office_desk', x, ZD, 0); await put('kenney', i === 1 ? 'laptop' : 'computerScreen', x, ZD, 0, { y: FY + 0.66 });
         if (i !== 1) { await put('kenney', 'computerKeyboard', x, ZD + 0.12, 0, { y: FY + 0.66 }); await put('kenney', 'computerMouse', x + 0.35, ZD + 0.12, 0, { y: FY + 0.66 }); }
-        await put('kenney', 'chairDesk', x + 0.1, ZD - 0.75, Math.PI); await put('kenney', 'trashcan', x + 0.9, ZD - 0.2, 0); }
-      await put('kaykit', 'cactus_small_A', -5.8, ZD - 0.1, 0, { y: FY + 0.66 }); await put('kenney', 'plantSmall2', 2.6, ZD - 0.15, 0, { y: FY + 0.66 }); await put('kaykit', 'book_set', -1.6, ZD - 0.15, 0.3, { y: FY + 0.66 }); await put('kaykit', 'pictureframe_standing_A', 6.6, ZD - 0.15, -0.3, { y: FY + 0.66 });
-      await put('kaykit', 'shelf_B_large_decorated', 7.6, ZB + 0.5, 0); await put('kenney', 'bookcaseClosedWide', -7.6, ZB + 0.45, 0); await put('kaykit', 'shelf_A_big', -4.7, ZB + 0.35, 0);
-      await put('kenney', 'pottedPlant', -8.6, Z + 2.6, 0, { k: 1.4 }); await put('kenney', 'pottedPlant', 8.6, ZB + 1.6, 0, { k: 1.4 }); await put('kenney', 'coatRackStanding', -8.5, Z - 0.5, 0);
-      await put('kenney', 'lampRoundFloor', 8.6, Z - 1.4, 0); await put('kenney', 'sideTable', 8.4, Z + 0.4, -Math.PI / 2); await put('kenney', 'kitchenCoffeeMachine', 8.4, Z + 0.4, -Math.PI / 2, { y: FY + 0.45 });
-      await put('kaykit', 'rug_rectangle_stripes_A', 0, Z + 0.4, 0, { k: 2.2, y: FY + 0.005, noInk: true }); await put('kaykit', 'pictureframe_large_A', -8.95, Z - 3.5, Math.PI / 2, { y: FY + 1.6 }); await put('kenney', 'speakerSmall', 3.0, ZD - 0.2, 0, { y: FY + 0.66 });
+        await put('polyhaven', 'modern_arm_chair_01', x + 0.1, ZD - 0.8, Math.PI); await put('polyhaven', i % 2 ? 'office_notepads' : 'clipboard', x - 0.55, ZD + 0.05, 0.4, { y: FY + 0.66 }); }
+      await put('polyhaven', 'desk_lamp_arm_01', -6.75, ZD - 0.15, 0.6, { y: FY + 0.66 }); await put('polyhaven', 'desk_lamp_arm_01', 6.75, ZD - 0.15, -0.6, { y: FY + 0.66 }); await put('polyhaven', 'alarm_clock_01', 2.7, ZD - 0.15, -0.3, { y: FY + 0.66 });
+      await put('polyhaven', 'potted_plant_04', -1.6, ZD - 0.2, 0, { y: FY + 0.66 }); await put('polyhaven', 'ceramic_vase_01', 6.0, ZD - 0.25, 0, { y: FY + 0.66 });
+      await put('polyhaven', 'Shelf_01', 7.6, ZB + 0.35, 0); await put('polyhaven', 'book_encyclopedia_set_01', 7.6, ZB + 0.35, 0, { y: FY + 1.0 }); await put('polyhaven', 'drawer_cabinet', -7.7, ZB + 0.45, 0); await put('polyhaven', 'painted_wooden_shelves', -4.7, ZB + 0.3, 0);
+      await put('polyhaven', 'pachira_aquatica_01', -8.5, Z + 2.8, 0); await put('polyhaven', 'potted_plant_01', 8.5, ZB + 1.4, 0); await put('polyhaven', 'potted_plant_02', -8.5, Z - 1.2, 0);
+      await put('polyhaven', 'CoffeeCart_01', 8.4, Z + 0.4, -Math.PI / 2); await put('polyhaven', 'hanging_picture_frame_01', -8.95, Z - 3.4, Math.PI / 2, { y: FY + 1.7 }); await put('polyhaven', 'hanging_picture_frame_02', 8.95, Z - 3.6, -Math.PI / 2, { y: FY + 1.7 });
+      await put('polyhaven', 'fire_alarm', 5.2, ZB + 0.12, 0, { y: FY + 2.6 }); for (const x of [-5, 0, 5]) await put('polyhaven', 'mounted_fluorescent_lights', x, Z - 1, 0, { y: FY + 4.05 });
+      await put('kaykit', 'rug_rectangle_stripes_A', 0, Z + 0.4, 0, { k: 2.2, y: FY + 0.005, noInk: true });
     } else {
       // home: living room + kitchen corner
       await put('kaykit', 'couch_pillows', -1.2, ZB + 1.1, 0, { k: 1.25 }); await put('kaykit', 'armchair_pillows', -4.6, Z - 2.6, 0.7, { k: 1.25 }); await put('kaykit', 'table_low', -1.2, Z - 2.4, 0, { k: 1.2 });
@@ -693,8 +698,12 @@ if (Q.has('viewer')) { if (Q.has('skit')) window.ready = false;   // the skit wa
   // ---------- 10 s skit "Trả lời tất cả" (owner 2026-11-10: "làm thử 1 kịch bản nhẹ nhẹ 10s") ----------
   ui.style.display = 'none';
   const O = OFF_O, VEST = OUTF[1], ZD = Z - 2.9, DESKS = [-6.2, -2.1, 2.1, 6.2], ME = 2.1, CO = [[thua, -6.2], [ti, -2.1], [chief, 6.2]];
-  const CHZ = ZD - 0.62, SEATY = FY;   // standing desks: people stand behind the desk (chairs hidden)
-  O.children.filter(o => o.name === 'chairDesk').forEach(o => (o.visible = false));
+  const CHZ = ZD - 0.55, SEATY = FY;   // standing desks: people stand behind the desk (chairs hidden)
+  O.children.filter(o => o.name === 'chairDesk' || o.name === 'modern_arm_chair_01').forEach(o => (o.visible = false));
+  const myMouse = O.children.find(o => o.name === 'computerMouse' && Math.abs(o.position.x - (ME + 0.35)) < 0.05); if (myMouse) myMouse.visible = false;
+  const MOUSEP = V(ME - 0.24, FY + 0.69, ZD - 0.33);
+  { const mm = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.04, 6, 12), new THREE.MeshStandardMaterial({ color: '#2b2f38', roughness: 0.35 })); mm.rotation.x = Math.PI / 2; mm.scale.set(1, 1, 0.55); mm.position.copy(MOUSEP).add(V(0, -0.012, 0)); mm.castShadow = true; O.add(mm);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.004, 0.22), new THREE.MeshStandardMaterial({ color: '#3d7be0', roughness: 0.8 })); pad.position.copy(MOUSEP).add(V(0, -0.03, 0)); O.add(pad); }   // his own mouse + pad (the kit mouse sat off the desk)
   // his monitor turns toward him; everyone's screen gets a flash panel; his screen shows the mail app
   const screens = []; O.traverse(o => { if (o.isObject3D && o.parent === O && Math.abs(o.position.z - ZD) < 0.01 && o.position.y > FY + 0.5 && DESKS.some(x => Math.abs(o.position.x - x) < 0.01)) screens.push(o); });
   screens.filter(o => Math.abs(o.position.x - ME) < 0.01).forEach(o => (o.rotation.y = Math.PI));
@@ -716,20 +725,26 @@ if (Q.has('viewer')) { if (Q.has('skit')) window.ready = false;   // the skit wa
     OUTF.forEach(c => (c.root.visible = false)); ex.forEach(c => (c.root.visible = false));
     // him
     const sink = clamp((t - T4) / 1.6); sit(VEST, ME, 0, eio(sink) * 0.75); if (t < CLICK) type(VEST, t); face(VEST, t < T2 ? 'smug' : t < CLICK ? 'calm' : t < T4 ? 'wide' : 'pale');
-    if (t >= CLICK && t < T4) { arm(VEST, 'Right', Lw(VEST, -0.2, 1.0, 0.55)); }
+    if (t >= 3.6 && t < T4) { const press = t > CLICK && t < CLICK + 0.15 ? -0.015 : 0; arm(VEST, 'Right', MOUSEP.clone().add(V(0, 0.05 + press, 0.0))); }   // his left mitten on the mouse (camera side of the frame)
     drawMail(clamp((t - 3.6) / (CLICK - 3.6)), t >= CLICK && t < CLICK + 0.5);
     // coworkers at their desks: type, then the ping, the screen flash, heads turn to him
     CO.forEach(([c, x], i) => { const tt = T3 + i * 0.18, turn = eio(clamp((t - tt - 0.35) / 0.4)); sit(c, x, turn * (LOOKAT(c) * 0.9)); if (t < tt) type(c, t + i); face(c, t < tt + 0.3 ? 'calm' : 'wide');
       const b = bubbles[i]; b.visible = t > tt + 0.1 && t < 9.4; const h = headC(c); b.position.set(h.x + 0.25, h.y + 0.42 + 0.05 * Math.sin(t * 9), h.z); b.scale.setScalar(0.38 * Math.min(1, (t - tt - 0.1) * 6)); });
     flashes.forEach((f, i) => { const tt = T3 + i * 0.18; f.material.opacity = t > tt ? Math.max(0, 1 - (t - tt) * 1.6) * 0.9 : 0; });
     ALL.forEach(c => SR.updateLimbs(c));
-    // shots
-    if (t < T2) { const u = t / T2; look(V(ME + 0.2, 1.75, ZD + 2.6 - u * 0.7), V(ME, 1.45, CHZ), 36); }
-    else if (t < T3) { const u = (t - T2) / (T3 - T2); look(V(ME + 0.75 - u * 0.1, 1.62, CHZ - 0.7 + u * 0.12), V(ME, FY + 0.93, ZD), 30); }
-    else if (t < 6.75) { const u = (t - T3) / (6.75 - T3); look(V(-1.45 - u * 0.15, 1.72, ZD + 1.45), V(-2.1, 1.42, CHZ), 40); }   // Tí: ping, flash, turns
-    else if (t < T4) { const u = (t - 6.75) / (T4 - 6.75); look(V(-5.55 - u * 0.15, 1.72, ZD + 1.45), V(-6.2, 1.42, CHZ), 40); }   // Thừa: same
-    else { const u = (t - T4) / (10 - T4); look(V(ME + 0.1, 1.55, ZD + 2.0 - u * 0.4), V(ME, 1.25 - u * 0.15, CHZ), 34); }
+    // shots — director's plan (camera-cinematography + camera grammar): establish → low hero push → OTS insert → ECU click snap → whip-pan reactions → dolly-zoom "oh no"
+    let dofD = 0, dofA = 0;
+    const HEAD = headC(VEST), MOUSE = MOUSEP;
+    if (t < 1.7) { const u = eio(t / 1.7); look(V(lerp(-3.5, 0.6, u), lerp(4.1, 2.6, u), lerp(Z + 4.5, ZD + 4.2, u)), V(lerp(-0.5, ME, u), lerp(1.0, 1.35, u), ZD - 0.3), 52); }   // 1 ESTABLISH: crane down from the ceiling corner, sun shafts, office geography
+    else if (t < T2) { const u = eio((t - 1.7) / (T2 - 1.7)); look(V(ME + 1.55 - u * 0.25, lerp(1.0, 1.1, u), lerp(ZD + 1.2, ZD + 0.95, u)), V(ME + 0.05, 1.62, CHZ), 38); dofD = 1.9; dofA = 0.012; }   // 2 LOW ANGLE push-in: smug hero, background soft
+    else if (t < 4.6) { const u = eio((t - T2) / (4.6 - T2)); look(V(ME + 0.55 - u * 0.12, 1.66, CHZ - 0.55 + u * 0.12), V(ME + 0.05, FY + 0.95, ZD), 30); dofD = 0.85; dofA = 0.008; }   // 3 OTS insert: his shoulder blurred in the foreground, the cursor creeps to "Trả lời tất cả"
+    else if (t < 5.45) { const u = (t - 4.6) / 0.85, snap = t > CLICK ? eio(clamp((t - CLICK) / 0.12)) : 0; look(MOUSE.clone().add(V(-0.55, 0.3, -0.5)).lerp(MOUSE.clone().add(V(-0.3, 0.16, -0.28)), 0.35 * u + 0.5 * snap), MOUSE.clone().add(V(0, 0.03, 0)), lerp(36, 22, snap)); dofD = 0.5; dofA = 0.01; }   // 4 ECU mitten on the mouse, snap-zoom on the click
+    else if (t < T4) { const A = headC(ti), B = headC(thua), P = V(-4.15, 1.6, ZD + 2.3), w = eio(clamp((t - 6.55) / 0.28)), shake = (t > 6.55 && t < 6.9) ? Math.sin(t * 90) * 0.01 : 0;   // 5 hold on Tí → WHIP PAN → hold on Thừa
+      look(P.clone().add(V(0, 0, -0.25 * clamp((t - 5.45) / 2.4))), A.clone().lerp(B, w).add(V(shake, -0.15, 0)), 40, (w > 0 && w < 1) ? 0.05 : 0); dofD = 2.6; dofA = 0.01; }
+    else { const u = eio((t - T4) / (10 - T4)), dz = lerp(1.2, 3.2, u), fov = 2 * Math.atan(0.42 / dz) * 180 / Math.PI;   // 6 DOLLY ZOOM (vertigo) + dutch tilt on the "oh no"
+      look(V(ME + 0.05, 1.55, CHZ + dz), V(ME, 1.5 - u * 0.12, CHZ), fov, -0.09 * u); dofD = dz; dofA = 0.015; }
+    post.bokeh.enabled = dofD > 0; if (dofD > 0) { post.bokeh.uniforms.focus.value = dofD; post.bokeh.uniforms.aperture.value = dofA; }
     const f = V(ME, 1, ZD); sun.target.position.copy(f); sun.position.copy(f).addScaledVector(SUNDIR, 60); const sc = sun.shadow.camera; sc.left = sc.bottom = -10; sc.right = sc.top = 10; sc.near = 1; sc.far = 140; sc.updateProjectionMatrix();
-    post.bokeh.enabled = false; U.uTime.value = t; post.render(); return canvas.toDataURL('image/jpeg', 0.92); };
+    U.uTime.value = t; post.render(); return canvas.toDataURL('image/jpeg', 0.92); };
   window.frame = frame; window.DUR = 10; window.ready = true; }
 }
