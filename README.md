@@ -48,5 +48,9 @@ Then in Claude Code say: *"Use the 3D animated shorts skill and make a 40 s shor
 - Furniture: [Poly Haven](https://polyhaven.com) scans (CC0, fetched by the script), [Kenney](https://kenney.nl) Furniture Kit and [KayKit](https://kaylousberg.itch.io/furniture-bits) Furniture Bits (CC0)
 - Rig: Xbot from the three.js examples (Mixamo). Horse from the three.js examples. Both are downloaded by the fetch script, not included here.
 
+## Support
+
+If this skill saved you some time, you can [buy me a coffee](https://buymeacoffee.com/thua9678) ☕
+
 ## License
 MIT for the code and docs (see `LICENSE`). Third-party assets keep their own licenses.
